@@ -4,7 +4,7 @@ import { dir } from 'console';
 import fs from 'fs';
 import { join } from 'path';
 
-const _2023_2024_BUCET_RESULTS = {
+const BUCET_RESULTS_2023_2024 = {
 	'university-name': 'Bicol University',
 	'school-year': '2023-2024',
 	data: [],
@@ -24,7 +24,7 @@ async function joinJsonData(dir) {
 	await fs.readFile(dir, 'utf8', (err, data) => {
 		if (err) return err;
 
-		_2023_2024_BUCET_RESULTS.data.push(...JSON.parse(data));
+		BUCET_RESULTS_2023_2024.data.push(...JSON.parse(data));
 	});
 }
 
@@ -45,7 +45,7 @@ export async function joinFormattedData(dirInput, dirOutput) {
 
 	await fs.writeFile(
 		`${dirOutput}.json`,
-		JSON.stringify(_2023_2024_BUCET_RESULTS),
+		JSON.stringify(BUCET_RESULTS_2023_2024),
 		(err) => {
 			if (err) {
 				return err;

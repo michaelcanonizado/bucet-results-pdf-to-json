@@ -33,7 +33,7 @@ async function recurseCampuses(dirInput, dirOutput) {
 		}
 	}
 
-	await joinFormattedData(dirOutput, './_2023_2024_BUCET_RESULTS');
+	await joinFormattedData(dirOutput, './BUCET_RESULTS_2023_2024');
 
 	const endTime = performance.now();
 	console.log('\n', '\n');
