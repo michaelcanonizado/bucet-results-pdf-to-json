@@ -1,0 +1,15 @@
+{
+	"name": "bicol-university-2023-2024-qualifiers",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"type": "module",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"pdfreader": "^3.0.0"
+	}
+}
