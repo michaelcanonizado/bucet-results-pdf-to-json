@@ -1,8 +1,6 @@
-const startTime = performance.now();
-
-import { dir } from 'console';
 import fs from 'fs';
-import { join } from 'path';
+
+import { consoleLog } from './consoleLog.js';
 
 const BUCET_RESULTS_2023_2024 = {
 	'university-name': 'Bicol University',
@@ -29,8 +27,8 @@ async function joinJsonData(dir) {
 }
 
 export async function joinFormattedData(dirInput, dirOutput) {
-	console.log('\n', '\n');
-	console.log('JOINING DATA INTO ONE FILE.....');
+	consoleLog('\n', '\n');
+	consoleLog(`joining all converted JSON data into one JSON Object`);
 
 	const campuses = await getFilesAndDirectories(dirInput);
 
@@ -52,7 +50,7 @@ export async function joinFormattedData(dirInput, dirOutput) {
 			}
 		}
 	);
-	console.log('DONE JOINING DATA INTO ONE FILE......');
+	consoleLog(
+		`done joining converted JSON data into one JSON Object: ${dirOutput}`
+	);
 }
-
-// joinFormattedData('./data-formatted-json', './_2023_2024_BUCET_RESULTS');

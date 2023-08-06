@@ -3,42 +3,38 @@ import fs from 'fs';
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
+import { consoleLog } from './consoleLog.js';
+
 const rl = readline.createInterface({ input, output });
 
 let data = [];
 
 function parsePdf(dirInput, CAMPUS_ABV, COURSE_NUMBER) {
 	let pageData = {};
-	console.log('\n', '\n');
-	console.log(
-		`-------------------parsing ${CAMPUS_ABV}: ${COURSE_NUMBER}------------------`
-	);
+	consoleLog(`scanning ${CAMPUS_ABV}: ${COURSE_NUMBER}`);
+	consoleLog('');
 	return new Promise(function (resolve, reject) {
 		new PdfReader().parseFileItems(dirInput, (err, item) => {
 			if (err) {
-				console.error({ err });
+				console.log(err);
 				reject(err);
 			} else if (!item) {
-				console.log(
-					'----------------------END OF FILE----------------------'
+				consoleLog('end of file');
+				consoleLog(
+					`done converting ${CAMPUS_ABV}: ${COURSE_NUMBER} to JSON`
 				);
-				console.log(
-					`--------done parsing ${CAMPUS_ABV}: ${COURSE_NUMBER}, whole document--------`
-				);
-				console.log(
-					'-------------------------------------------------------'
-				);
+				consoleLog('');
 				reject(err);
 			} else if (item.page) {
-				console.log(
-					`------------done parsing ${CAMPUS_ABV}: ${COURSE_NUMBER}, page ${item.page}------------`
-				);
 				pageData = {};
-
 				data.push(pageData);
+
+				consoleLog(
+					`done converting ${CAMPUS_ABV}: ${COURSE_NUMBER}, page ${item.page} to JSON`
+				);
+
 				resolve();
 			} else if (item.text) {
-				// pageData[item.text] = pageNumber;
 				(pageData[item.y] = pageData[item.y] || []).push(item.text);
 
 				resolve();
@@ -83,9 +79,7 @@ async function formatStudentData(data, CAMPUS_ABV, COURSE_NUMBER) {
 					str.includes('DOCTOR')
 				) {
 					studentCourse = page[row][0];
-					console.log(
-						'-----------------done retriving course-----------------'
-					);
+					consoleLog('retrived course from converted JSON');
 				}
 			}
 			if (studentCampus === null) {
@@ -96,9 +90,7 @@ async function formatStudentData(data, CAMPUS_ABV, COURSE_NUMBER) {
 					str.includes('BU ')
 				) {
 					studentCampus = page[row][0];
-					console.log(
-						'-----------------done retriving campus-----------------'
-					);
+					consoleLog('retrived campus from converted JSON');
 				}
 			}
 			if (studentStatus === null) {
@@ -116,13 +108,13 @@ async function formatStudentData(data, CAMPUS_ABV, COURSE_NUMBER) {
 			studentCourse = await rl.question(
 				`Course not found for: ${CAMPUS_ABV}: ${COURSE_NUMBER} | Please Manually Enter: `
 			);
-			console.log('-----------------done retriving course-----------------');
+			consoleLog('retrived course from converted JSON');
 		}
 		if (studentCampus === null || undefined) {
 			studentCourse = await rl.question(
 				`Campus not found for: ${CAMPUS_ABV}: ${COURSE_NUMBER} | Please Manually Enter: `
 			);
-			console.log('-----------------done retriving campus-----------------');
+			consoleLog('retrived campus from converted JSON');
 		}
 
 		// Format all retrived data into Student Object
@@ -159,30 +151,31 @@ async function formatStudentData(data, CAMPUS_ABV, COURSE_NUMBER) {
 							course: studentCourse.trim(),
 							campus: [studentCampus.trim(), CAMPUS_ABV.trim()],
 						});
-						console.log('-------ERROR--------');
-						console.log(error);
-						console.log(page);
+						// consoleLog('ERROR');
+						// consoleLog(error);
+						// consoleLog(page);
 					}
 				}
 			}
 		}
 	}
 
-	console.log('--------------------done formating---------------------');
-	console.log('-------------------------------------------------------');
+	consoleLog('');
+	consoleLog('done formating converted JSON');
+	consoleLog('');
 
 	return studentsFormattedData;
 }
 
 async function writeData(dir, course, data) {
-	console.log('---------------------WRITING FILES---------------------');
+	consoleLog(`writing files to: ${dir}`);
 	if (!fs.existsSync(dir)) {
-		console.log('------------------DIRECTORY NOT FOUND------------------');
-		console.log('-------------------CREATING DIRECTORY------------------');
+		consoleLog(`${dir} not found`);
+		consoleLog(`creating /${dir}`);
 		fs.mkdirSync(dir, { recursive: true });
 	}
-	const res = await fs.writeFile(
-		`${dir}/${course.replace('.pdf', '')}.json`,
+	await fs.writeFile(
+		`${dir}/${course.replace('.pdf', '.json')}`,
 		JSON.stringify(data),
 		(err) => {
 			if (err) {
@@ -191,11 +184,10 @@ async function writeData(dir, course, data) {
 		}
 	);
 
-	return `---------------DONE WRITING DATA FOR: ${course}-------------`;
+	return consoleLog(
+		`done writing data to: ${dir}/${course.replace('.pdf', '.json')}`
+	);
 }
-
-// const CAMPUS_ABV = 'BUCS';
-// const COURSE_NUMBER = 'A-54';
 
 export async function convertAndFormatData(
 	dirInput,
@@ -217,7 +209,7 @@ export async function convertAndFormatData(
 		COURSE_NUMBER
 	);
 
-	const res = await writeData(
+	await writeData(
 		`${dirOutput}/${CAMPUS_ABV}`,
 		COURSE_NUMBER,
 		studentsFormattedData
@@ -225,9 +217,10 @@ export async function convertAndFormatData(
 
 	data = [];
 
-	console.log(res);
-
-	console.log(
-		`-----------------Number of Items: ${studentsFormattedData.length} ------------------`
+	consoleLog(
+		`number of students for ${CAMPUS_ABV}: ${COURSE_NUMBER.replace(
+			'.pdf',
+			'.json'
+		)}: ${studentsFormattedData.length}`
 	);
 }

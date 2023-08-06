@@ -7,6 +7,8 @@ import fs, { write } from 'fs';
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
+import { consoleLog } from './utils/consoleLog.js';
+
 const rl = readline.createInterface({ input, output });
 
 async function getFilesAndDirectories(dir) {
@@ -20,8 +22,8 @@ async function getFilesAndDirectories(dir) {
 }
 
 async function recurseCampuses(dirInput, dirOutput) {
-	console.log('READING....');
-	console.log('\n', '\n');
+	consoleLog('READING');
+	consoleLog('\n', '\n');
 
 	const campuses = await getFilesAndDirectories(dirInput);
 
@@ -36,19 +38,11 @@ async function recurseCampuses(dirInput, dirOutput) {
 	await joinFormattedData(dirOutput, './BUCET_RESULTS_2023_2024');
 
 	const endTime = performance.now();
-	console.log('\n', '\n');
-	console.log(
-		`----------------Elapsed Time: ${(endTime - startTime).toFixed(
-			3
-		)} ms---------------`
-	);
-	console.log(
-		`-----------------Elapsed Time: ${((endTime - startTime) / 1000).toFixed(
-			3
-		)} s-----------------`
-	);
+	consoleLog('\n', '\n');
+	consoleLog(`Elapsed Time: ${(endTime - startTime).toFixed(3)}ms`);
+	consoleLog(`Elapsed Time: ${((endTime - startTime) / 1000).toFixed(3)}s`);
 
-	console.log('\n', '\n');
+	consoleLog('\n', '\n');
 	rl.close();
 }
 
