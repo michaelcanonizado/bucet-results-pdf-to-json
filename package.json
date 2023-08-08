@@ -10,6 +10,7 @@
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
-		"pdfreader": "^3.0.0"
+		"pdfreader": "^3.0.0",
+		"ulid": "^2.3.0"
 	}
 }

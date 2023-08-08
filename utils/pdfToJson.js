@@ -1,3 +1,4 @@
+import { ulid } from 'ulid';
 import { PdfReader } from 'pdfreader';
 import fs from 'fs';
 import * as readline from 'node:readline/promises';
@@ -152,6 +153,7 @@ async function formatStudentData(data, CAMPUS_ABV, COURSE_NUMBER) {
 							status: studentStatus.toUpperCase().trim(),
 							course: studentCourse,
 							campus: [studentCampus, CAMPUS_ABV],
+							id: ulid(),
 						});
 					} // #1.3.6.4 - Students with missing one value (no middle name).
 					else {
@@ -168,6 +170,7 @@ async function formatStudentData(data, CAMPUS_ABV, COURSE_NUMBER) {
 							status: studentStatus.toUpperCase().trim(),
 							course: studentCourse.trim(),
 							campus: [studentCampus.trim(), CAMPUS_ABV.trim()],
+							id: ulid(),
 						});
 					}
 				}
