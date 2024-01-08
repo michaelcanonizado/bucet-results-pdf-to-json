@@ -125,62 +125,34 @@ async function formatStudentData(data, YEAR, CAMPUS_ABV, COURSE_NUMBER) {
   const studentsFormattedData = [];
 
   for (const page of data) {
-    let studentStatus = null;
-
-    // #1.3.2 - Retrieve the status of the student.
     for (const row in page) {
-      if (studentStatus === null) {
-        if (page[row][0].toUpperCase().trim() === "QUALIFIED") {
-          studentStatus = "QUALIFIED";
-        }
-        if (page[row][0].toUpperCase().trim() === "WAITLISTED") {
-          studentStatus = "WAITLISTED";
-        }
-      }
-    }
+      const rowData = page[row].map((item) => item.trim());
 
-    // #1.3.6 - Format all retrived data into one Student Object.
-    for (const row in page) {
-      // #1.3.6.1 = Determine a student when the first item of the Array is a number or float.
-      if (!isNaN(parseFloat(page[row][0]))) {
-        // #1.3.6.2 - Immediately disregard rows with less than 9 items.
-        if (page[row].length >= 8) {
-          // #1.3.6.3 - Students with complete values
-          if (page[row].length === 9) {
-            studentsFormattedData.push({
-              rank: page[row][0].trim(),
-              lastName: page[row][1].trim(),
-              firstName: page[row][2].trim(),
-              middleName: page[row][3].trim(),
-              city: page[row][4].trim(),
-              province: page[row][5].trim(),
-              school: page[row][6].trim(),
-              compositeRating: page[row][7].trim(),
-              percentileRank: page[row][8].trim(),
-              status: studentStatus.toUpperCase().trim(),
-              course: COURSE_NUMBER,
-              campus: CAMPUS_ABV,
-              year: YEAR,
-            });
-          } // #1.3.6.4 - Students with missing one value (no middle name).
-          else {
-            studentsFormattedData.push({
-              rank: page[row][0].trim(),
-              lastName: page[row][1].trim() || "",
-              firstName: page[row][2].trim(),
-              middleName: " ",
-              city: page[row][3].trim(),
-              province: page[row][4].trim(),
-              school: page[row][5].trim(),
-              compositeRating: page[row][6].trim(),
-              percentileRank: page[row][7].trim(),
-              status: studentStatus.toUpperCase().trim(),
-              course: COURSE_NUMBER,
-              campus: CAMPUS_ABV,
-              year: YEAR,
-            });
-          }
-        }
+      // Retrieve the status of the student.
+      const statuses = ["QUALIFIED", "WAITLISTED"];
+      let status = statuses.includes(rowData[0].toUpperCase())
+        ? rowData[0].toUpperCase()
+        : null;
+
+      // Determine a student when the first item of the Array is a number or float.
+      if (!isNaN(parseFloat(rowData[0])) && rowData.length >= 8) {
+        const studentData = {
+          rank: rowData[0],
+          lastName: rowData[1] || "",
+          firstName: rowData[2],
+          middleName: rowData.length === 9 ? rowData[3] : " ",
+          city: rowData.length === 9 ? rowData[4] : rowData[3],
+          province: rowData.length === 9 ? rowData[5] : rowData[4],
+          school: rowData.length === 9 ? rowData[6] : rowData[5],
+          compositeRating: rowData.length === 9 ? rowData[7] : rowData[6],
+          percentileRank: rowData.length === 9 ? rowData[8] : rowData[7],
+          status: status,
+          course: COURSE_NUMBER,
+          campus: CAMPUS_ABV,
+          year: YEAR,
+        };
+
+        studentsFormattedData.push(studentData);
       }
     }
   }
