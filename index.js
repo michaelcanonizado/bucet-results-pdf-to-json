@@ -1,11 +1,7 @@
 import fs from "fs";
-import { stdin as input, stdout as output } from "node:process";
-import * as readline from "node:readline/promises";
 import { PdfReader } from "pdfreader";
-const rl = readline.createInterface({ input, output });
 
 let data = [];
-const mergedData = [];
 
 async function getFilesAndDirectories(dir) {
   return new Promise((resolve, reject) => {
@@ -14,67 +10,6 @@ async function getFilesAndDirectories(dir) {
 
       resolve(folders);
     });
-  });
-}
-
-async function scanAndFormatAllBucetResults(dirInput, dirOutput) {
-  // #1 - Loop through input directory to scan and convert all PDFs
-  const years = await getFilesAndDirectories(dirInput);
-
-  for (const year of years) {
-    const campuses = await getFilesAndDirectories(`${dirInput}/${year}`);
-
-    for (const campus of campuses) {
-      const courseCodes = await getFilesAndDirectories(
-        `${dirInput}/${year}/${campus}`
-      );
-
-      for (const courseCode of courseCodes) {
-        await convertAndFormatData(
-          dirInput,
-          dirOutput,
-          year,
-          campus,
-          courseCode
-        );
-      }
-    }
-  }
-  // #2 - Loop through output directory to join all JSON files
-  await joinFormattedData(dirOutput, "./out/merged-data");
-  rl.close();
-}
-
-async function joinJsonData(dir) {
-  await fs.readFile(dir, "utf8", (err, data) => {
-    if (err) return err;
-
-    mergedData.push(...JSON.parse(data));
-  });
-}
-
-export async function joinFormattedData(dirInput, dirOutput) {
-  const years = await getFilesAndDirectories(dirInput);
-
-  for (const year of years) {
-    const campuses = await getFilesAndDirectories(`${dirInput}/${year}`);
-
-    for (const campus of campuses) {
-      const courseCodes = await getFilesAndDirectories(
-        `${dirInput}/${year}/${campus}`
-      );
-
-      for (const courseCode of courseCodes) {
-        await joinJsonData(`${dirInput}/${year}/${campus}/${courseCode}`);
-      }
-    }
-  }
-
-  // #2.2 - Write the merged data to a single file.
-  await fs.writeFile(`${dirOutput}.json`, JSON.stringify(mergedData), (err) => {
-    if (err) {
-      return err;
-    }
   });
 }
 
@@ -160,27 +95,8 @@ async function formatStudentData(data, YEAR, CAMPUS_ABV, COURSE_NUMBER) {
   return studentsFormattedData;
 }
 
-async function writeData(dir, course, data) {
-  // #1.4.1 - Check whether the neccessary folders needed to maintain the folder structure of 'data-pdf' is present.
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  // #1.4.2 - Once folder is present, write the file.json.
-  await fs.writeFile(
-    `${dir}/${course.replace(".pdf", ".json")}`,
-    JSON.stringify(data),
-    (err) => {
-      if (err) {
-        return err;
-      }
-    }
-  );
-}
-
 export async function convertAndFormatData(
   dirInput,
-  dirOutput,
   YEAR,
   CAMPUS_ABV,
   COURSE_NUMBER
@@ -203,16 +119,45 @@ export async function convertAndFormatData(
     COURSE_NUMBER
   );
 
-  // #1.4 - Write the formatted data into a JSON file.
-  await writeData(
-    `${dirOutput}/${YEAR}/${CAMPUS_ABV}`,
-    COURSE_NUMBER,
-    studentsFormattedData
-  );
-
   // #1.5 Flush the scanned and formatted students data for the next course, since the data is globally initialized
   data = [];
+
+  // Return the formatted data
+  return studentsFormattedData;
 }
 
-// Run the script
-scanAndFormatAllBucetResults("./pdfs", "./out");
+async function parsePdfFiles(dirInput, dirOutput = "./output.json") {
+  let mergedData = [];
+
+  // #1 - Loop through input directory to scan and convert all PDFs
+  const years = await getFilesAndDirectories(dirInput);
+
+  for (const year of years) {
+    const campuses = await getFilesAndDirectories(`${dirInput}/${year}`);
+
+    for (const campus of campuses) {
+      const courseCodes = await getFilesAndDirectories(
+        `${dirInput}/${year}/${campus}`
+      );
+
+      for (const courseCode of courseCodes) {
+        const formattedData = await convertAndFormatData(
+          dirInput,
+          year,
+          campus,
+          courseCode
+        );
+        mergedData.push(...formattedData);
+      }
+    }
+  }
+
+  // #2 - Write the merged data into a JSON file.
+  await fs.writeFile(dirOutput, JSON.stringify(mergedData), (err) => {
+    if (err) {
+      return err;
+    }
+  });
+}
+
+parsePdfFiles("./pdfs");
