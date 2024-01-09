@@ -14,6 +14,14 @@ async function readDirectory(path) {
   });
 }
 
+// Converts a string to title case.
+function toTitleCase(str) {
+  return str.replace(
+    /\w\S*/g,
+    (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+  );
+}
+
 // Process PDF file and return data in a structured format.
 async function processPdf(path) {
   let pages = [];
@@ -40,31 +48,37 @@ function formatPdfData(data, year, campus, course) {
   let formattedData = [];
 
   data.forEach((page) => {
-    Object.keys(page).forEach((y) => {
-      const rowData = page[y].map((item) => item.trim());
+    const statusRow = Object.values(page).find(
+      (row) =>
+        row.length === 1 &&
+        ["Qualified", "Waitlisted"].includes(toTitleCase(row[0]))
+    );
+    const status = statusRow ? toTitleCase(statusRow[0]) : null;
 
-      // Fix: Status is always `null` because the status is always in the first row of the page. So, we need to traverse the array to find thestatus.Status either`QUALIFIED`or`WAITLISTED`
-      const status = ["QUALIFIED", "WAITLISTED"].find(
-        (s) => s === rowData[0].toUpperCase()
-      );
+    Object.entries(page).forEach(([_, data]) => {
+      // Skip if first column is not a number or if there are fewer columns.
+      if (isNaN(parseFloat(data[0])) || data.length < 8) return;
 
-      if (!isNaN(parseFloat(rowData[0])) && rowData.length >= 8) {
-        formattedData.push({
-          rank: rowData[0],
-          lastName: rowData[1] || null,
-          firstName: rowData[2],
-          middleName: rowData.length === 9 ? rowData[3] : null,
-          city: rowData.length === 9 ? rowData[4] : rowData[3],
-          province: rowData.length === 9 ? rowData[5] : rowData[4],
-          school: rowData.length === 9 ? rowData[6] : rowData[5],
-          compositeRating: rowData.length === 9 ? rowData[7] : rowData[6],
-          percentileRank: rowData.length === 9 ? rowData[8] : rowData[7],
-          status: status,
-          course: course,
-          campus: campus,
-          year: year,
-        });
-      }
+      // If there are 9 columns, then there is a middle name and
+      // the rest of the data is offset by 1.
+      const offset = data.length === 9 ? 1 : 0;
+
+      data = data.map((item) => item.trim());
+      formattedData.push({
+        rank: data[0],
+        lastName: toTitleCase(data[1]),
+        firstName: toTitleCase(data[2]),
+        middleName: offset ? toTitleCase(data[3]) : null,
+        city: toTitleCase(data[3 + offset]),
+        province: toTitleCase(data[4 + offset]),
+        school: toTitleCase(data[5 + offset]),
+        compositeRating: data[6 + offset],
+        percentileRank: data[7 + offset],
+        status: status,
+        course: course,
+        campus: campus,
+        year: year,
+      });
     });
   });
 
@@ -89,10 +103,9 @@ async function parsePdfFiles(inputPath, outputPath = "./output.json") {
           const pdfData = await processPdf(pdfPath);
           const formattedData = formatPdfData(
             pdfData,
-            pdfPath,
             year,
             campus,
-            course
+            course.replace(".pdf", "")
           );
           allData.push(...formattedData);
         }
