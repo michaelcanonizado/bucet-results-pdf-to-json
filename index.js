@@ -1,17 +1,17 @@
 import fs from "fs";
+import path from "path";
 import { PdfReader } from "pdfreader";
 
-// Asynchronously read directory contents.
-async function readDirectory(path) {
-  return new Promise((resolve, reject) => {
-    fs.readdir(path, (err, files) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(files);
-      }
-    });
-  });
+// Asynchronously read directory contents recursively
+async function readDirectoryRecursively(dir) {
+  const dirents = await fs.promises.readdir(dir, { withFileTypes: true });
+  const files = await Promise.all(
+    dirents.map((dirent) => {
+      const res = path.resolve(dir, dirent.name);
+      return dirent.isDirectory() ? readDirectoryRecursively(res) : res;
+    })
+  );
+  return Array.prototype.concat(...files);
 }
 
 // Converts a string to title case.
@@ -85,34 +85,24 @@ function formatPdfData(data, year, campus, course) {
   return formattedData;
 }
 
-// Main function to parse PDF files and output JSON.
-async function parsePdfFiles(inputPath, outputPath = "./output.json") {
+// Main function to parse PDF files and output JSON
+async function parsePdfFiles(inpath, outpath = "./output.json") {
+  const pathPattern = /[\\/](\d{4})[\\/]([^\\/]+)[\\/]([^\\/]+)\.pdf$/;
   let allData = [];
 
   try {
-    const years = await readDirectory(inputPath);
-
-    for (const year of years) {
-      const campuses = await readDirectory(`${inputPath}/${year}`);
-
-      for (const campus of campuses) {
-        const courses = await readDirectory(`${inputPath}/${year}/${campus}`);
-
-        for (const course of courses) {
-          const pdfPath = `${inputPath}/${year}/${campus}/${course}`;
-          const pdfData = await processPdf(pdfPath);
-          const formattedData = formatPdfData(
-            pdfData,
-            year,
-            campus,
-            course.replace(".pdf", "")
-          );
-          allData.push(...formattedData);
-        }
+    const files = await readDirectoryRecursively(inpath);
+    for (const file of files) {
+      const match = file.match(pathPattern);
+      if (match) {
+        const [, year, campus, course] = match;
+        const pdfData = await processPdf(file);
+        const formattedData = formatPdfData(pdfData, year, campus, course);
+        allData.push(formattedData);
       }
     }
 
-    fs.writeFileSync(outputPath, JSON.stringify(allData));
+    fs.writeFileSync(outpath, JSON.stringify(allData));
   } catch (err) {
     console.error("Error processing PDF files:", err);
   }
