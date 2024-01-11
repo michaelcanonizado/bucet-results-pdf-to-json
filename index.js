@@ -3,28 +3,22 @@ import path from "path";
 import { PdfReader } from "pdfreader";
 
 // Asynchronously read directory contents recursively
-async function readDirectoryRecursively(dir) {
-  const dirents = await fs.promises.readdir(dir, { withFileTypes: true });
+async function readDirectoryRecursively(directory) {
+  const entries = await fs.promises.readdir(directory, { withFileTypes: true });
   const files = await Promise.all(
-    dirents.map((dirent) => {
-      const res = path.resolve(dir, dirent.name);
-      return dirent.isDirectory() ? readDirectoryRecursively(res) : res;
+    entries.map(async (entry) => {
+      const resolvedPath = path.resolve(directory, entry.name);
+      return entry.isDirectory()
+        ? readDirectoryRecursively(resolvedPath)
+        : resolvedPath;
     })
   );
-  return Array.prototype.concat(...files);
+  return files.flat();
 }
 
-// Converts a string to title case.
-function toTitleCase(str) {
-  return str.replace(
-    /\w\S*/g,
-    (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
-  );
-}
-
-// Process PDF file and return data in a structured format.
+// Process PDF file and return OCR data
 async function processPdf(path) {
-  let pages = [];
+  const pages = [];
   let currentPage = {};
 
   return new Promise((resolve, reject) => {
@@ -33,80 +27,71 @@ async function processPdf(path) {
         reject(err);
       } else if (!item) {
         resolve(pages);
-      } else if (item.page) {
-        currentPage = {};
-        pages.push(currentPage);
-      } else if (item.text) {
-        (currentPage[item.y] = currentPage[item.y] || []).push(item.text);
+      } else {
+        if (item.page) {
+          currentPage = {};
+          pages.push(currentPage);
+        } else if (item.text) {
+          currentPage[item.y] = (currentPage[item.y] || []).concat(item.text);
+        }
       }
     });
   });
 }
 
-// Format PDF data.
+// Format PDF data
 function formatPdfData(data, year, campus, course) {
-  let formattedData = [];
+  const toTitleCase = (str) =>
+    str
+      .toLowerCase()
+      .replace(/(?:^|\s|["'([{])+\S/g, (match) => match.toUpperCase());
 
-  data.forEach((page) => {
-    const statusRow = Object.values(page).find(
-      (row) =>
-        row.length === 1 &&
-        ["Qualified", "Waitlisted"].includes(toTitleCase(row[0]))
-    );
-    const status = statusRow ? toTitleCase(statusRow[0]) : null;
-
-    Object.entries(page).forEach(([_, data]) => {
-      // Skip if first column is not a number or if there are fewer columns.
-      if (isNaN(parseFloat(data[0])) || data.length < 8) return;
-
-      // If there are 9 columns, then there is a middle name and
-      // the rest of the data is offset by 1.
-      const offset = data.length === 9 ? 1 : 0;
-
-      data = data.map((item) => item.trim());
-      formattedData.push({
-        rank: data[0],
-        lastName: toTitleCase(data[1]),
-        firstName: toTitleCase(data[2]),
-        middleName: offset ? toTitleCase(data[3]) : null,
-        city: toTitleCase(data[3 + offset]),
-        province: toTitleCase(data[4 + offset]),
-        school: toTitleCase(data[5 + offset]),
-        compositeRating: data[6 + offset],
-        percentileRank: data[7 + offset],
-        status: status,
-        course: course,
-        campus: campus,
-        year: year,
-      });
+  return data.flatMap((page) => {
+    const status = Object.values(page).find((row) =>
+      ["QUALIFIED", "WAITLISTED"].includes(row[0])
+    )?.[0];
+    return Object.values(page).flatMap((row) => {
+      if (isNaN(parseFloat(row[0])) || row.length < 8) return [];
+      row = row.map((str) => str.trim());
+      const offset = row.length === 9 ? 1 : 0;
+      return [
+        {
+          rank: row[0],
+          lastName: toTitleCase(row[1]),
+          firstName: toTitleCase(row[2]),
+          middleName: offset ? toTitleCase(row[3]) : null,
+          city: toTitleCase(row[3 + offset]),
+          province: toTitleCase(row[4 + offset]),
+          school: toTitleCase(row[5 + offset]),
+          compositeRating: row[6 + offset],
+          percentileRank: row[7 + offset],
+          status: toTitleCase(status),
+          course,
+          campus,
+          year,
+        },
+      ];
     });
   });
-
-  return formattedData;
 }
 
-// Main function to parse PDF files and output JSON
-async function parsePdfFiles(inpath, outpath = "./output.json") {
+// Parse PDF files in a directory and write to output file
+async function parsePdfFiles(inpath, outpath) {
   const pathPattern = /[\\/](\d{4})[\\/]([^\\/]+)[\\/]([^\\/]+)\.pdf$/;
-  let allData = [];
-
-  try {
-    const files = await readDirectoryRecursively(inpath);
-    for (const file of files) {
+  const files = await readDirectoryRecursively(inpath);
+  const allData = await Promise.all(
+    files.map(async (file) => {
       const match = file.match(pathPattern);
       if (match) {
-        const [, year, campus, course] = match;
+        const [year, campus, course] = match.slice(1);
         const pdfData = await processPdf(file);
-        const formattedData = formatPdfData(pdfData, year, campus, course);
-        allData.push(formattedData);
+        return formatPdfData(pdfData, year, campus, course);
       }
-    }
+    })
+  );
 
-    fs.writeFileSync(outpath, JSON.stringify(allData));
-  } catch (err) {
-    console.error("Error processing PDF files:", err);
-  }
+  await fs.writeFileSync(outpath, JSON.stringify(allData.flat()));
 }
 
-// Start processing.
-parsePdfFiles("./pdfs");
+// Start processing
+parsePdfFiles("./pdfs", "./output.json");
